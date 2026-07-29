@@ -10,10 +10,12 @@ interface SceneConfig {
   userId: string
   displayName: string
   avatar: string
+  onError?: (msg: string) => void
 }
 
 export class OfficeScene extends Phaser.Scene {
   private player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody
+  private playerLabel!: Phaser.GameObjects.Text
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys
   private wasd!: Record<'up' | 'down' | 'left' | 'right', Phaser.Input.Keyboard.Key>
   private currentRoom = ''
@@ -25,6 +27,7 @@ export class OfficeScene extends Phaser.Scene {
   > = new Map()
   private unsubPresence?: () => void
   private sceneConfig: SceneConfig
+  private hasLoadError = false
 
   constructor(config: SceneConfig) {
     super('OfficeScene')
@@ -32,6 +35,13 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   preload() {
+    this.load.on('loaderror', (file: Phaser.Loader.File) => {
+      this.hasLoadError = true
+      this.sceneConfig.onError?.(
+        `No se pudo cargar "${file.key}". Verifica que los assets estén en public/assets/`
+      )
+    })
+
     this.load.tilemapTiledJSON('office', '/assets/tilemaps/office.json')
     this.load.image('tiles', '/assets/tilesets/office_tileset.png')
     this.load.spritesheet('characters', '/assets/sprites/characters.png', {
@@ -41,28 +51,44 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   create() {
+    if (this.hasLoadError) return
+
     const map = this.make.tilemap({ key: 'office' })
     const tileset = map.addTilesetImage('office_tileset', 'tiles')!
     map.createLayer('Floor', tileset)
     const wallsLayer = map.createLayer('Walls', tileset)!
     wallsLayer.setCollisionByExclusion([-1])
 
-    // Room zones from Tiled object layer
+    // Room zones + spawn point from Tiled object layer
     const objectLayer = map.getObjectLayer('Rooms')
+    let spawnX = map.widthInPixels / 2
+    let spawnY = map.heightInPixels / 2
+
     if (objectLayer) {
       objectLayer.objects.forEach((obj) => {
-        this.roomZones.push({
-          id: obj.name ?? '',
-          bounds: new Phaser.Geom.Rectangle(obj.x!, obj.y!, obj.width!, obj.height!),
-        })
+        if (obj.name === 'spawn') {
+          spawnX = obj.x! + (obj.width ?? 0) / 2
+          spawnY = obj.y! + (obj.height ?? 0) / 2
+        } else {
+          this.roomZones.push({
+            id: obj.name ?? '',
+            bounds: new Phaser.Geom.Rectangle(obj.x!, obj.y!, obj.width!, obj.height!),
+          })
+        }
       })
     }
 
-    const spawnX = map.widthInPixels / 2
-    const spawnY = map.heightInPixels / 2
     this.player = this.physics.add.sprite(spawnX, spawnY, 'characters', 0)
     this.player.setCollideWorldBounds(true)
     this.physics.add.collider(this.player, wallsLayer)
+
+    // Label flotante sobre el jugador local
+    this.playerLabel = this.add.text(spawnX, spawnY - 14, this.sceneConfig.displayName, {
+      fontSize: '8px',
+      color: '#ffffff',
+      backgroundColor: '#00000099',
+      padding: { x: 2, y: 1 },
+    }).setOrigin(0.5)
 
     this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels)
     this.cameras.main.startFollow(this.player, true)
@@ -107,6 +133,8 @@ export class OfficeScene extends Phaser.Scene {
   }
 
   update(time: number) {
+    if (this.hasLoadError) return
+
     const speed = 80
     const { left, right, up, down } = this.wasd
     const c = this.cursors
@@ -128,6 +156,9 @@ export class OfficeScene extends Phaser.Scene {
     } else {
       this.player.anims.stop()
     }
+
+    // Label sigue al jugador local
+    this.playerLabel.setPosition(this.player.x, this.player.y - 14)
 
     this.currentRoom = this.detectRoom()
 
