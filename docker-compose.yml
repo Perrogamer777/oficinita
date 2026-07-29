@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+      target: deps
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=development
+    command: npm run dev
