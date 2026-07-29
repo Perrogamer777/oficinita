@@ -1,4 +1,4 @@
-import { initializeApp, getApps } from 'firebase/app'
+import { initializeApp, getApps, type FirebaseApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getDatabase } from 'firebase/database'
 import { getFirestore } from 'firebase/firestore'
@@ -13,8 +13,12 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig)
+// Firebase no soporta SSR — solo inicializar en el browser
+const isBrowser = typeof window !== 'undefined'
+const app: FirebaseApp | null = isBrowser
+  ? (getApps().length ? getApps()[0] : initializeApp(firebaseConfig))
+  : null
 
-export const auth = getAuth(app)
-export const db = getDatabase(app)
-export const firestore = getFirestore(app)
+export const auth = app ? getAuth(app) : ({} as ReturnType<typeof getAuth>)
+export const db = app ? getDatabase(app) : ({} as ReturnType<typeof getDatabase>)
+export const firestore = app ? getFirestore(app) : ({} as ReturnType<typeof getFirestore>)
