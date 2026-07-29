@@ -57,7 +57,8 @@ export class OfficeScene extends Phaser.Scene {
     const tileset = map.addTilesetImage('office_tileset', 'tiles')!
     map.createLayer('Floor', tileset)
     const wallsLayer = map.createLayer('Walls', tileset)!
-    wallsLayer.setCollisionByExclusion([-1])
+    // Colisión solo en tiles de pared (IDs 3-5). Puertas (7) y otros son pasables.
+    wallsLayer.setCollisionBetween(3, 5)
 
     // Room zones + spawn point from Tiled object layer
     const objectLayer = map.getObjectLayer('Rooms')
