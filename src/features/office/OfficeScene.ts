@@ -127,10 +127,13 @@ export class OfficeScene extends Phaser.Scene {
       repeat: -1,
     })
 
-    setOfflineOnDisconnect(this.sceneConfig.userId)
-    this.unsubPresence = subscribeToPresence((presence) => {
-      this.syncRemoteAvatars(presence)
-    })
+    // En modo demo (userId vacío) se omite la sincronización con RTDB
+    if (this.sceneConfig.userId) {
+      setOfflineOnDisconnect(this.sceneConfig.userId)
+      this.unsubPresence = subscribeToPresence((presence) => {
+        this.syncRemoteAvatars(presence)
+      })
+    }
   }
 
   update(time: number) {
